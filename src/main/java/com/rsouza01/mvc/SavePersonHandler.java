@@ -11,33 +11,52 @@ import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 public class SavePersonHandler
         implements RequestHandler<PersonRequest, PersonResponse> {
 
     private DynamoDB dynamoDb;
     private String DYNAMODB_TABLE_NAME = "Person";
-    private Regions REGION = Regions.US_WEST_2;
+    private Regions REGION = Regions.US_EAST_1;
 
-    public PersonResponse handleRequest(
-            PersonRequest personRequest, Context context) {
 
-        this.initDynamoDbClient();
 
-        persistData(personRequest);
+    public PersonResponse handleRequest(PersonRequest personRequest, Context context) {
 
         PersonResponse personResponse = new PersonResponse();
-        personResponse.setMessage("Saved Successfully!!!");
+
+        try {
+            this.initDynamoDbClient();
+
+            persistData(personRequest);
+
+            personResponse.setMessage("Saved Successfully!!!");
+
+        } catch(Exception e) {
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+            String exceptionAsString = sw.toString();
+            personResponse.setMessage(exceptionAsString);
+        }
+
         return personResponse;
     }
 
-    private PutItemOutcome persistData(PersonRequest personRequest)
-            throws ConditionalCheckFailedException {
+    private PutItemOutcome persistData(PersonRequest personRequest) throws ConditionalCheckFailedException {
 
         return this.dynamoDb.getTable(DYNAMODB_TABLE_NAME)
                 .putItem(
-                        new PutItemSpec().withItem(new Item()
+                        new PutItemSpec().withItem(
+                                new Item()
+                                .withNumber("id", personRequest.getId())
                                 .withString("firstName", personRequest.getFirstName())
-                                .withString("lastName", personRequest.getLastName())));
+                                .withString("lastName", personRequest.getLastName())
+                                .withNumber("age", personRequest.getAge())
+                                .withString("address", personRequest.getAddress())
+                        )
+                );
     }
 
     private void initDynamoDbClient() {
